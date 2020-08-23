@@ -1,0 +1,32 @@
+#game {
+    margin: auto;
+    position: relative;
+}
+
+.card {
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    background-color: green;
+    text-align: center;
+    font-size: 32px;
+}
+
+.button {
+    position: absolute;
+    background-color: orange;
+    width: 144px;
+}
+
+.score {
+    position: absolute;
+    background-color: yellow;
+}
+
+.open {
+    color: yellow;
+}
+
+.confirm {
+    color: red;
+}
