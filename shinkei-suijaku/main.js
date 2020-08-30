@@ -1,10 +1,10 @@
 (function() {
 
     // 定数
-    const field_width = 5;
-    const field_height = 5;
-    const cards = ("ABCDEFGHIJKL".repeat(2) + "X").split("");
-    const gameset_count = 24;
+    const field_width = 3;
+    const field_height = 3;
+    const cards = ("ABCD".repeat(2) + "X").split("");
+    const finish_count = 8;
 
     // 要素
     var divs = [];
@@ -15,7 +15,7 @@
     var first = -1;
     var second = -1;
     // 揃ったかどうか
-    var confirm_array = [];
+    var confirmed = Array(field_width * field_height).fill(false);
 
     // やり直し回数
     var count = 0;
@@ -46,6 +46,13 @@
         clear(game);
         shuffle(cards);
 
+        // 各種値
+        first = -1;
+        second = -1;
+        confirmed = Array(field_width * field_height).fill(false);
+        count = 0;
+        cleared = false;
+
         for (var i = 0; i < field_height; i++) {
             for (var j = 0; j < field_width; j++) {
                 var div = document.createElement("div");
@@ -57,11 +64,10 @@
                 divs.push(div);
 
                 (function() {
-                    var new_i = i;
-                    var new_j = j;
+                    var index = i * field_width + j;
 
                     div.onclick = function() {
-                        click(new_i, new_j);
+                        click(index);
                     };
                 })();
             }
@@ -82,13 +88,37 @@
         game.appendChild(score);
     }
 
+    // クリア判定
+    // めくったカードをカウントして比較
+    function finished() {
+        var count = 0;
+
+        for (var i = 0; i < confirmed.length; i++) {
+            if (confirmed[i]) {
+                count += 1;
+            }
+        }
+
+        if (finish_count == count) {
+            return true;
+        }
+    }
+
     // カードクリック時の動作
-    function click(i, j) {
-        if (second != -1) {
+    function click(index) {
+        console.log("second:" + second);
+        console.log("index:" + index);
+        console.log("first:" + first);
+        console.log(cleared);
+        // 次の状態ならなにもしない
+        // 2枚めくった状態
+        // 1枚目と同じ場所
+        // クリア状態
+        if (second != -1 || index == first || cleared) {
             return;
         }
 
-        var index = i * field_width + j;
+        // var index = i * field_width + j;
         var div = divs[index];
         var card = cards[index];
 
@@ -107,8 +137,17 @@
                 divs[first].classList.remove("open");
                 divs[first].classList.add("confirm");
                 div.classList.add("confirm");
+                confirmed[first] = true;
+                confirmed[index] = true;
                 first = -1;
                 second = -1;
+
+                // クリア判定
+                if (finished()) {
+                    cleared = true;
+                    button.innerHTML = "もう一度";
+                    button.onclick = initialize;
+                }
             }
             // 違った場合
             else {
