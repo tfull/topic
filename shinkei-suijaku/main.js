@@ -1,10 +1,10 @@
 (function() {
 
     // 定数
-    const field_width = 3;
-    const field_height = 3;
-    const cards = ("ABCD".repeat(2) + "X").split("");
-    const finish_count = 8;
+    const field_width = 5;
+    const field_height = 5;
+    const cards = ("ABCDEFGHIJKL".repeat(2) + "X").split("");
+    const finish_count = 24;
 
     // 要素
     var divs = [];
@@ -15,7 +15,7 @@
     var first = -1;
     var second = -1;
     // 揃ったかどうか
-    var confirmed = Array(field_width * field_height).fill(false);
+    var confirmed = null;
 
     // やり直し回数
     var count = 0;
@@ -52,6 +52,9 @@
         confirmed = Array(field_width * field_height).fill(false);
         count = 0;
         cleared = false;
+
+        // 要素
+        divs = []
 
         for (var i = 0; i < field_height; i++) {
             for (var j = 0; j < field_width; j++) {
@@ -106,10 +109,6 @@
 
     // カードクリック時の動作
     function click(index) {
-        console.log("second:" + second);
-        console.log("index:" + index);
-        console.log("first:" + first);
-        console.log(cleared);
         // 次の状態ならなにもしない
         // 2枚めくった状態
         // 1枚目と同じ場所
@@ -118,7 +117,6 @@
             return;
         }
 
-        // var index = i * field_width + j;
         var div = divs[index];
         var card = cards[index];
 
@@ -145,7 +143,7 @@
                 // クリア判定
                 if (finished()) {
                     cleared = true;
-                    button.innerHTML = "もう一度";
+                    button.innerHTML = "クリア（もう一度）"
                     button.onclick = initialize;
                 }
             }
