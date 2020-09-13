@@ -1,5 +1,5 @@
 import pygame
-from pygame.locals import *
+import pygame.locals
 import time
 
 
@@ -34,7 +34,18 @@ class Human:
         self.ay = -9.8 / 2
         self.vx = 0
         self.vy = 0
+        self.on_ground = False
         self.last_update = time.time()
+
+    def move(self, command):
+        if command["type"] == "jump":
+            if self.on_ground:
+                self.vy += 5
+                self.on_ground = False
+        elif command["type"] == "run":
+            self.vx = command["x"]
+            if self.on_ground:
+                self.vy = command["y"]
 
     def update(self, blocks):
         big = 1000000
@@ -42,6 +53,8 @@ class Human:
         dt = now - self.last_update
         self.vx += self.ax * dt
         self.vy += self.ay * dt
+
+        self.on_ground = False
 
         # 衝突を無視した場合の座標
         nx = self.x + self.vx * dt
@@ -84,10 +97,10 @@ class Human:
                     # 人間のほうが上
                     if ny >= by:
                         c_top = big
-                        c_bottom = c_h - (by - ny)
+                        c_bottom = c_h - (ny - by)
                     # 人間のほうが下
                     else:
-                        c_top = c_h - (ny - by)
+                        c_top = c_h - (by - ny)
                         c_bottom = big
                 else:
                     c_top = big
@@ -113,12 +126,14 @@ class Human:
                 elif c_direction == "right":
                     nx = bx - c_w
                     self.vx = 0
-                elif c_top == "top":
+                elif c_direction == "top":
                     ny = by - c_h
                     self.vy = 0
                 else:
                     ny = by + c_h
                     self.vy = 0
+                    # 着地フラグを付ける
+                    self.on_ground = True
 
         # 位置の決定
         self.x = nx
@@ -133,7 +148,7 @@ class Human:
         px, py = pr(cx, cy)
         width = self.width / (Constant.max_x - Constant.min_x) * Constant.width
         height = self.height / (Constant.max_y - Constant.min_y) * Constant.height
-        rect = Rect(px, py, int(width), int(height))
+        rect = pygame.locals.Rect(px, py, int(width), int(height))
         pygame.draw.rect(screen, Color.blue, rect, 3)
 
 
@@ -150,29 +165,8 @@ class Block:
         px, py = pr(self.x, self.y)
         width = self.width / (Constant.max_x - Constant.min_x) * Constant.width
         height = self.height / (Constant.max_y - Constant.min_y) * Constant.height
-        rect = Rect(px, py, int(width), int(height))
+        rect = pygame.locals.Rect(px, py, int(width), int(height))
         pygame.draw.rect(screen, Color.yellow, rect, 3)
-
-
-class Watch:
-    def __init__(self):
-        self.last = time.time()
-
-    def wait(self):
-        now = time.time()
-        # 前回からの経過時間
-        dt = now - self.last
-        # 待つべき時間
-        s = 1 / Constant.frequency - dt
-        # ミリ秒数
-        ms = int(s * 1000)
-        # 更新
-        self.last = now
-        # 待つ場合は正の値を返す
-        if ms > 0:
-            return ms
-        else:
-            return 0
 
 
 # 座標マッピング
@@ -203,14 +197,16 @@ def pr(x, y):
 
 # メイン処理
 def main():
+    pygame.joystick.init()
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+
+    # 物体の生成
     blocks = [
         Block(-10, 0.5, 20, 1),
         Block(2, 3, 1, 1)
     ]
     human = Human()
-    # pygame.joystick.init()
-    # joystick = pygame.joystick.Joystick(0)
-    # joystick.init()
 
     # 初期化
     pygame.init()
@@ -220,20 +216,26 @@ def main():
     screen = pygame.display.get_surface()
     pygame.display.set_caption("Runner")
 
-    watch = Watch()
+    # フレームレート調整用
+    clock = pygame.time.Clock()
 
     count = 0
 
     while True:
         count += 1
 
+        ### 操作
         for e in pygame.event.get():
             # バツボタンで閉じる
-            if e.type == QUIT:
+            if e.type == pygame.locals.QUIT:
                 pygame.quit()
                 return
-
-        ### 操作
+            elif e.type == pygame.locals.JOYHATMOTION:
+                x, y = joystick.get_hat(0)
+                human.move({ "type": "run", "x": x, "y": y })
+            elif e.type == pygame.locals.JOYBUTTONDOWN:
+                if e.button in range(4):
+                    human.move({ "type": "jump" })
 
         ### 動作
         human.update(blocks)
@@ -252,12 +254,8 @@ def main():
         # 描画処理
         pygame.display.update()
 
-        # 処理が早く終わったら待つ
-        wait_time = watch.wait()
-
-        if wait_time > 0:
-            pygame.time.wait(wait_time)
-
+        ### フレームレート調整
+        clock.tick(Constant.frequency)
 
 
 if __name__ == '__main__':
