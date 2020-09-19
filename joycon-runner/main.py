@@ -236,7 +236,8 @@ class Watch:
         self.end = None
 
     def stop(self):
-        self.end = time.time()
+        if self.end is None:
+            self.end = time.time()
 
     def draw(self, screen):
         if self.end is None:
