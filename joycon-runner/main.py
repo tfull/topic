@@ -1,5 +1,6 @@
 import pygame
 import pygame.locals
+import random
 import time
 
 
@@ -12,40 +13,47 @@ class Constant:
     width = 640
     height = 360
     frequency = 30
+    ga = - 9.8 / 1.4
+    font = None
 
 
 # 色
 class Color:
+    white = (255, 255, 255)
     black = (0, 0, 0)
     red = (255, 0, 0)
     blue = (0, 0, 255)
     green = (0, 255, 0)
     yellow = (255, 255, 0)
+    aqua = (0, 255, 255)
 
 
 # 操作キャラ
 class Human:
+    vy_jump = 7
+
     def __init__(self):
         self.width = 0.6
         self.height = 1.0
         self.x = 0
         self.y = 3.6
         self.ax = 0
-        self.ay = -9.8 / 2
+        self.ay = Constant.ga
         self.vx = 0
         self.vy = 0
         self.on_ground = False
         self.last_update = time.time()
+        self.over = False
 
     def move(self, command):
+        if self.over:
+            return
+
         if command["type"] == "jump":
             if self.on_ground:
-                self.vy += 5
-                self.on_ground = False
+                self.vy += Human.vy_jump
         elif command["type"] == "run":
             self.vx = command["x"]
-            if self.on_ground:
-                self.vy = command["y"]
 
     def update(self, blocks):
         big = 1000000
@@ -142,6 +150,10 @@ class Human:
         # 更新
         self.last_update = now
 
+    def stop(self):
+        self.over = True
+        self.vx = 0
+
     def draw(self, screen):
         cx = self.x - self.width / 2
         cy = self.y + self.height / 2
@@ -149,7 +161,8 @@ class Human:
         width = self.width / (Constant.max_x - Constant.min_x) * Constant.width
         height = self.height / (Constant.max_y - Constant.min_y) * Constant.height
         rect = pygame.locals.Rect(px, py, int(width), int(height))
-        pygame.draw.rect(screen, Color.blue, rect, 3)
+        color = Color.blue if not self.over else Color.aqua
+        pygame.draw.rect(screen, color, rect, 3)
 
 
 # 足場と壁
@@ -167,6 +180,72 @@ class Block:
         height = self.height / (Constant.max_y - Constant.min_y) * Constant.height
         rect = pygame.locals.Rect(px, py, int(width), int(height))
         pygame.draw.rect(screen, Color.yellow, rect, 3)
+
+
+# 弾
+class Bullet:
+    def __init__(self, x, y, vx, vy):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.last_update = time.time()
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+
+    def draw(self, screen):
+        px, py = pr(self.x, self.y)
+        pygame.draw.circle(screen, Color.white, (px, py), 2)
+
+
+# 発射台
+class Shooter:
+    sps = 2
+
+    def __init__(self, x0, y0, x1, y1, vx, vy):
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+        self.vx = vx
+        self.vy = vy
+        self.last_shoot = time.time()
+
+    def shoot(self, bullets):
+        t = random.random()
+        x = self.x0 + (self.x1 - self.x0) * t
+        y = self.y0 + (self.y1 - self.y0) * t
+        bullet = Bullet(x, y, self.vx, self.vy)
+        bullets.append(bullet)
+
+    def update(self, bullets):
+        now = time.time()
+        dt = now - self.last_shoot
+
+        if dt > 1 / Shooter.sps:
+            self.shoot(bullets)
+            self.last_shoot = now
+
+
+# タイマー
+class Watch:
+    def __init__(self):
+        self.start = time.time()
+        self.end = None
+
+    def stop(self):
+        self.end = time.time()
+
+    def draw(self, screen):
+        if self.end is None:
+            score = int(time.time() - self.start)
+        else:
+            score = int(self.end - self.start)
+
+        text = Constant.font.render(str(score), True, Color.green)
+        screen.blit(text, (Constant.width - 50, 0))
 
 
 # 座標マッピング
@@ -195,21 +274,29 @@ def pr(x, y):
     return (int(px), int(py))
 
 
+# 弾が人間に当たったか
+def hit(human, bullets):
+    x0 = human.x - human.width / 2
+    x1 = human.x + human.width / 2
+    y0 = human.y - human.height / 2
+    y1 = human.y + human.height / 2
+
+    for b in bullets:
+        if x0 < b.x < x1 and y0 < b.y < y1:
+            return True
+
+    return False
+
+
 # メイン処理
 def main():
+    # 初期化
+    pygame.init()
+    Constant.font = pygame.font.SysFont(None, 50)
+
     pygame.joystick.init()
     joystick = pygame.joystick.Joystick(0)
     joystick.init()
-
-    # 物体の生成
-    blocks = [
-        Block(-10, 0.5, 20, 1),
-        Block(2, 3, 1, 1)
-    ]
-    human = Human()
-
-    # 初期化
-    pygame.init()
 
     # 画面設定
     pygame.display.set_mode((Constant.width, Constant.height), 0, 32)
@@ -218,6 +305,24 @@ def main():
 
     # フレームレート調整用
     clock = pygame.time.Clock()
+
+    # 時間計測開始
+    watch = Watch()
+
+    # 物体の生成
+    blocks = [
+        Block(-10, 0.5, 20, 1),
+        Block(2, 3, 1, 1)
+    ]
+
+    human = Human()
+
+    shooters = [
+        Shooter(Constant.min_x, Constant.max_y, Constant.max_x, Constant.max_y, 0, -0.1),
+        Shooter(Constant.max_x, Constant.max_y, Constant.max_x, Constant.min_y, -0.1, 0)
+    ]
+
+    bullets = []
 
     count = 0
 
@@ -238,18 +343,36 @@ def main():
                     human.move({ "type": "jump" })
 
         ### 動作
+        # 人間
         human.update(blocks)
+        # 弾
+        for bullet in bullets:
+            bullet.update()
+        # 発射
+        for shooter in shooters:
+            shooter.update(bullets)
+
+        # 画面外に消えた弾を消す
+        bullets = [b for b in bullets if Constant.min_x <= b.x <= Constant.max_x and Constant.min_y <= b.y <= Constant.max_y]
+
+        # ゲームステータス判定
+        if hit(human, bullets):
+            human.stop()
+            watch.stop()
 
         ### 描画
         # 背景
         screen.fill(Color.black)
-
         # 足場と壁
         for block in blocks:
             block.draw(screen)
-
         # 人間
         human.draw(screen)
+        # 弾
+        for bullet in bullets:
+            bullet.draw(screen)
+        # 得点
+        watch.draw(screen)
 
         # 描画処理
         pygame.display.update()
