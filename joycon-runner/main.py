@@ -157,7 +157,7 @@ class Human:
     def draw(self, screen):
         cx = self.x - self.width / 2
         cy = self.y + self.height / 2
-        px, py = pr(cx, cy)
+        px, py = point_map(cx, cy)
         width = self.width / (Constant.max_x - Constant.min_x) * Constant.width
         height = self.height / (Constant.max_y - Constant.min_y) * Constant.height
         rect = pygame.locals.Rect(px, py, int(width), int(height))
@@ -175,7 +175,7 @@ class Block:
         self.height = height
 
     def draw(self, screen):
-        px, py = pr(self.x, self.y)
+        px, py = point_map(self.x, self.y)
         width = self.width / (Constant.max_x - Constant.min_x) * Constant.width
         height = self.height / (Constant.max_y - Constant.min_y) * Constant.height
         rect = pygame.locals.Rect(px, py, int(width), int(height))
@@ -196,7 +196,7 @@ class Bullet:
         self.y += self.vy
 
     def draw(self, screen):
-        px, py = pr(self.x, self.y)
+        px, py = point_map(self.x, self.y)
         pygame.draw.circle(screen, Color.white, (px, py), 2)
 
 
@@ -250,7 +250,7 @@ class Watch:
 
 
 # 座標マッピング
-def pr(x, y):
+def point_map(x, y):
     min_x = Constant.min_x
     max_x = Constant.max_x
     min_y = Constant.min_y
