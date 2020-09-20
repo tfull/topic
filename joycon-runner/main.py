@@ -13,7 +13,7 @@ class Constant:
     width = 640
     height = 360
     frequency = 30
-    ga = - 9.8 / 1.4
+    ga = - 9.8
     font = None
 
 
@@ -30,7 +30,7 @@ class Color:
 
 # 操作キャラ
 class Human:
-    vy_jump = 7
+    vy_jump = 8
 
     def __init__(self):
         self.width = 0.6
@@ -44,6 +44,7 @@ class Human:
         self.on_ground = False
         self.last_update = time.time()
         self.over = False
+        self.m = 0
 
     def move(self, command):
         if self.over:
@@ -53,15 +54,22 @@ class Human:
             if self.on_ground:
                 self.vy += Human.vy_jump
         elif command["type"] == "run":
-            self.vx = command["x"]
+            self.m = command["x"]
 
     def update(self, blocks):
         big = 1000000
         now = time.time()
         dt = now - self.last_update
+
+        # 横方向への移動動作
+        if not self.over:
+            self.vx = 0.333 * self.vx + 0.667 * (self.m * 1.6)
+
+        # 速度の加算
         self.vx += self.ax * dt
         self.vy += self.ay * dt
 
+        # 着地状況をリセット
         self.on_ground = False
 
         # 衝突を無視した場合の座標
@@ -153,6 +161,7 @@ class Human:
     def stop(self):
         self.over = True
         self.vx = 0
+        self.vy = 0
 
     def draw(self, screen):
         cx = self.x - self.width / 2
@@ -162,7 +171,7 @@ class Human:
         height = self.height / (Constant.max_y - Constant.min_y) * Constant.height
         rect = pygame.locals.Rect(px, py, int(width), int(height))
         color = Color.blue if not self.over else Color.aqua
-        pygame.draw.rect(screen, color, rect, 3)
+        pygame.draw.rect(screen, color, rect, 0)
 
 
 # 足場と壁
@@ -179,7 +188,7 @@ class Block:
         width = self.width / (Constant.max_x - Constant.min_x) * Constant.width
         height = self.height / (Constant.max_y - Constant.min_y) * Constant.height
         rect = pygame.locals.Rect(px, py, int(width), int(height))
-        pygame.draw.rect(screen, Color.yellow, rect, 3)
+        pygame.draw.rect(screen, Color.yellow, rect, 1)
 
 
 # 弾
@@ -313,7 +322,12 @@ def main():
     # 物体の生成
     blocks = [
         Block(-10, 0.5, 20, 1),
-        Block(2, 3, 1, 1)
+        Block(-10, 10, 20, 0.9),
+        Block(-9, 10, 0.9, 11),
+        Block(8.1, 10, 0.9, 11),
+        Block(2, 3, 1.6, 1),
+        Block(-6.2, 4.7, 6.4, 0.6),
+        Block(2.8, 6, 1.4, 0.5)
     ]
 
     human = Human()
@@ -326,6 +340,7 @@ def main():
     bullets = []
 
     count = 0
+    game_over = False
 
     while True:
         count += 1
@@ -357,9 +372,10 @@ def main():
         bullets = [b for b in bullets if Constant.min_x <= b.x <= Constant.max_x and Constant.min_y <= b.y <= Constant.max_y]
 
         # ゲームステータス判定
-        if hit(human, bullets):
+        if not game_over and hit(human, bullets):
             human.stop()
             watch.stop()
+            game_over = True
 
         ### 描画
         # 背景
